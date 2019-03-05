@@ -15,16 +15,19 @@
 ;; Moves are a sequence of [x y p], where player is either :x or :o, and
 ;; x, y indicates the column and row of the move.
 
-(defn occupied? [board x y ]
+(defn occupied?
+  [board x y ]
   (not= ((board x) y) :_))
 
 ;; CHALLENGE 1: Implement this function. See toehold.core-test/available-moves-test
-(defn available-moves [board]
+(defn available-moves
   "Return all empty positions as [x y]"
+  [board]
   ;; TODO note that project is unrunnable until this function is implemented
   )
 
-(defn move [board [x y val]]
+(defn move
+  [board [x y val]]
   (if (occupied? board x y)
     (throw (Exception. (str "Can't move to occupied space: " board x y val)))
     (assoc board x (assoc (board x) y val))))
@@ -38,7 +41,8 @@
 
 (defn- rand-player [] (rand-nth players))
 
-(defn- rand-valid-move [moves & [player]]
+(defn- rand-valid-move
+  [moves & [player]]
   (let [board (board-from moves) ; memoize?
         avl-moves (available-moves board)]
     (assert (seq avl-moves) ; Make sure board's not full
@@ -47,10 +51,12 @@
           (conj (rand-nth avl-moves)
                 (or player (cur-player moves))))))
 
-(defn full? [moves]
+(defn full?
+  [moves]
   (>= (count moves) 9))
 
-(defn cols [b]
+(defn cols
+  [b]
   (for [col-i (range 3)]
     (mapv #(nth % col-i) b)))
 
@@ -62,17 +68,20 @@
   [& args]
   (apply (first args) (rest args)))
 
-(defn diags [b]
-  "(mapv call b (range 3)) returns [((b 0) 0), ((b 1) 1), ((b 2) 2)]. Then
-we do the same thing but for [2 1 0]."
+(defn diags
+  "(mapv call b (range 3)) returns [((b 0) 0), ((b 1) 1), ((b 2) 2)]. Then we do
+  the same thing but for [2 1 0]."
+  [b]
   (vector (mapv call b (range 3))
           (mapv call b (reverse (range 3)))))
 
-(defn triplets [b]
+(defn triplets
   "Return all triplets of b that could qualify as a win"
+  [b]
   (concat (rows b) (cols b) (diags b)))
 
-(defn- check-triplet [triplet]
+(defn- check-triplet
+  [triplet]
   (let [one (players (first triplet))] ;call players to restrict to :x :o
     (when (every? #(= % one) triplet)
       one)))
@@ -82,12 +91,13 @@ we do the same thing but for [2 1 0]."
   [moves]
   (first (keep check-triplet (triplets (board-from moves)))))
 
-(defn full-or-win? [moves]
+(defn full-or-win?
+  [moves]
   (or (full? moves) (win? moves)))
 
 (defn rand-game
-  "Return a game consisting of a sequence of valid moves ending in a win
-  or a full board"
+  "Return a game consisting of a sequence of valid moves ending in a win or a
+  full board"
   []
   (first (drop-while (comp not full-or-win?)
                      (iterate rand-valid-move []))))
