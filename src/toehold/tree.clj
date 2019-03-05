@@ -10,7 +10,8 @@
 ;; Contentful-node zipper largely borrowed from
 ;; http://grokbase.com/p/gg/clojure/12ag6cjnch/how-to-represent-trees-for-use-with-zippers
 (defn content-zipper
-  "vector-zip and seq-zip assume that branch nodes don't have content. This version is like vector-zip, but assumes all nodes can have content."
+  "vector-zip and seq-zip assume that branch nodes don't have content. This
+  version is like vector-zip, but assumes all nodes can have content."
   [root]
   (z/zipper (comp coll? :children)
             :children
@@ -26,14 +27,17 @@
   (when-let [node (z/node loc)]
     (str "> " (:content node))))
 
-(defn print-tree [loc]
+(defn print-tree
+  [loc]
   (when-not (z/end? loc)
     (do (when (z/branch? loc)
           (pprint (str (string/join "" (repeat (count (z/path loc)) " "))
                        (node-str loc))))
         (recur (z/next loc)))))
 
-(defn node-path "Return the simple path of nodes up to and including this location, including the location"
+(defn node-path
+  "Return the simple path of nodes up to and including this location, including
+  the location"
   [loc]
   (conj (z/path loc) (z/node loc)))
 
