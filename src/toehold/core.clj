@@ -28,8 +28,10 @@
 (defn available-moves
   "Return all empty positions as [x y]"
   [board]
-  ;; TODO note that project is unrunnable until this function is implemented
-  )
+  (for [x [0 1 2]
+        y [0 1 2]
+        :when (not (occupied? board x y))]
+    [x y]))
 
 (defn move
   [board [x y val]]
