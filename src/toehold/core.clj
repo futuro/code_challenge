@@ -7,10 +7,14 @@
 
 (def players #{:x :o})
 
-;; We represent a board-state as a 3x3 matrix of :x, :o, or :_ (blank).
-;; nil for blank would be slightly easier to deal with, but would decrease
-;; readability on print
-(def empty-board [[:_ :_ :_] [:_ :_ :_] [:_ :_ :_]])
+(def empty-board
+  "We represent a board-state as a 3x3, column-by-row matrix of :x, :o, or :_ (blank).
+   `nil` for blank would be slightly easier to deal with, but would decrease
+  readability on print.
+
+  N.B. each sub-vector represents one column's values, as opposed to each
+  sub-vector representing a row's values."
+  [[:_ :_ :_] [:_ :_ :_] [:_ :_ :_]])
 
 ;; Moves are a sequence of [x y p], where player is either :x or :o, and
 ;; x, y indicates the column and row of the move.
@@ -55,13 +59,13 @@
   [moves]
   (>= (count moves) 9))
 
-(defn cols
+(defn rows
   [b]
   (for [col-i (range 3)]
     (mapv #(nth % col-i) b)))
 
 ;; Trivial, but handy to have the matching call
-(defn rows [b] b)
+(defn cols [b] b)
 
 (defn call
   "Given a seq containing a fn and some args, apply the fn to the args"
