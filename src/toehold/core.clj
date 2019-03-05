@@ -2,6 +2,7 @@
   (:require [clojure.core.logic :as l]
             [clojure.core.logic.arithmetic :as la]
             [clojure.pprint :refer [pprint]]
+            [clojure.string :as str]
             [toehold.utils :refer [inspect]])
   (:gen-class))
 
@@ -67,6 +68,16 @@
 ;; Trivial, but handy to have the matching call
 (defn cols [b] b)
 
+(defn visualize-board
+  [board]
+  (->> board
+       rows ; printing happens rows-then-columns, so align in that order up front
+       (map #(->> %
+                  (map name) ; Converting to names avoids retaining the `:` when using `str/join`
+                  (str/join " | ")
+                  (str " ")))
+       (str/join "\n")))
+
 (defn call
   "Given a seq containing a fn and some args, apply the fn to the args"
   [& args]
@@ -111,6 +122,6 @@
   [& args]
   (let [game (rand-game)]
     (println "moves: " game)
-    (println "board at end of random game: " (board-from game))
+    (printf "board at end of random game: \n%s\n" (visualize-board (board-from game)))
     (println "winner: " (win? game))
     (println "final move: " (last game))))
