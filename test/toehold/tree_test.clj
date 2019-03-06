@@ -13,15 +13,15 @@
 (def nodes (v->nodes x1))
 (def z1 (content-zipper nodes))
 
-(print-tree z1)
 (comment
+  (print-tree z1)
   "> 17"
   " > 3"
   " > 14"
   "  > 23"
   "  > 11"
   "   > 8"
-  )
+ )
 
 ;; Handy zipper shortcuts for quicker testing:
 (def z-l z/left)
