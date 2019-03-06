@@ -19,7 +19,7 @@
               (assoc nd :children children))
             root))
 
-(defn content [loc] (:content (first loc)))
+(defn content [loc] (:content (z/node loc)))
 
 (defn node-str
   "Return the attractively formatted contents of a node"
