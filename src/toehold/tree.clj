@@ -43,8 +43,16 @@
 
 ;; Tree Generation
 
+;; TODO this game state structure has implications for the `permute-move-states`
+;; function's structure, so it seems weird for it to be removed from the
+;; function. should I move this into the functions definition and simply remove
+;; the 2-arity form?
 (defn init-game-state
-  "Generate a node representing a board before any more have been made."
+  "Generate a node representing a game state before any move have been made.
+
+  We store both the played moves as well as the open positions to allow
+  recursive calls on each node to decide how to move next, instead of having to
+  calculate the available positions on each call."
   []
   (node.
    {:played []
@@ -89,6 +97,21 @@
   [loc]
   (-> loc content :played count))
 
+;; CHALLENGE 2: Write a function to build a tree of all possible games. Explain
+;; why or why not it uses content-zipper (above).
+;;
+;; CHALLENGE 2 ANSWER:
+;;
+;; This uses content-zipper primarily because content zipper is there and I
+;; wanted to see what it would be like to use it. It also gave me an opportunity
+;; to explore the version of the problem space where you're permuting all
+;; possible move combinations. There's possibly a time savings from the way
+;; zippers reconstruct the parent nodes only once you move back up to them, but
+;; I'm not certain that applies here.
+;;
+;; We stop generating moves (and thus child nodes) for a particular branch once
+;; a win state has been accomplished, as more moves after that would be
+;; nonsensical.
 (defn permute-move-states
   "Generate all possible ordered movement sets as a tree, up to a given depth.
 
@@ -100,19 +123,6 @@
   and an empty game board has a depth of zero."
   ([depth] (permute-move-states (content-zipper (init-game-state)) depth))
   ([location depth]
-   ;; Using z/next would be depth-first generation, so I need to not generate
-   ;; another move if the board is full or if the moves so far represent a win.
-   ;; If I want to generate board states, then `full-or-win?` will complicate
-   ;; things because it takes lists of moves.
-   ;;
-   ;; On the other hand, if I'm generating moves, then we could track open
-   ;; positions and played moves, which would avoid needing to generate open
-   ;; positions every time we make another node, We start with an empty vec of
-   ;; played positions and the 9 coords for every position available, then
-   ;; iterate through them to generate new children, and finally recurse with
-   ;; `z/next` to handle the next depth.
-   ;;
-   ;;I need to return the root of the
    (loop [location location]
      (cond
 
@@ -130,16 +140,33 @@
        ;;
        ;; A depth is defined by the number of moves necessary to get
        ;; there, with the root having a depth of 0.
-       ;;
-       ;; TODO add a check to not generate more moves if the game is won.
-       (and (not (> (loc-depth location) depth)))
+       (and (not (> (loc-depth location) depth))
+            ;; You need at least 5 total moves for a winner, so only run that
+            ;; calculation if it's even possible to have won
+            ;;
+            ;; Interestingly, without this check a 6-depth tree takes ~4.6
+            ;; seconds to make (though it would be riddled with invalid game
+            ;; states), and a depth-boxed check takes ~7.4 seconds, while a
+            ;; non-depth-boxed check takes ~15 seconds.
+            (or (< (loc-depth location) 4)
+                (not (win? (-> location content :played)))))
        (recur (z/next
-               (reduce (fn [loc mv]
-                         (-> loc
+               (let [previous-player (-> location content :played last last)]
+                 (reduce (fn [loc mv]
+                           (cond-> loc
+                             ;; If the last player was :o, or if no one has
+                             ;; played yet, create a game state where :x has
+                             ;; played the next move
+                             (or (= previous-player :o)
+                                 (= previous-player nil))
                              (append-move mv :x)
+
+                             ;; Same deal here for :x as the previous player
+                             (or (= previous-player :x)
+                                 (= previous-player nil))
                              (append-move mv :o)))
-                       location
-                       (-> location content :open))))
+                         location
+                         (-> location content :open)))))
 
        ;; If we're not at the end of the nodes, but we *are* at the `depth`
        ;; limit, then we just want to go look at the next node in the tree to
