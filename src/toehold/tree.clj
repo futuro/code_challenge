@@ -112,6 +112,10 @@
 ;; We stop generating moves (and thus child nodes) for a particular branch once
 ;; a win state has been accomplished, as more moves after that would be
 ;; nonsensical.
+;;
+;; TODO: how would I test this without hand-coding something like 200K move
+;; sets? What are the base cases you'd expect, and what are the extreme cases to
+;; watch out for?
 (defn permute-move-states
   "Generate all possible ordered movement sets as a tree, up to a given depth.
 
