@@ -1,9 +1,9 @@
 (ns toehold.tree
-  (:require [clojure.zip :as z]
+  (:require [clojure.math.combinatorics :as combo]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as string]
+            [clojure.zip :as z]
             [toehold.core :as c :refer :all]))
-
 
 (defrecord node [content children])
 
@@ -178,12 +178,163 @@
        :else
        (recur (z/next location))))))
 
-;; CHALLENGE 2: Write a function to build a tree of all possible games. Explain
-;; why or why not it uses content-zipper (above).
-
 ;; CHALLENGE 3: Is it possible to rewrite build-tree so that it's significantly
 ;; more efficient in time and/or space? If so, what strategies do you see for
 ;; that? Implement one.
+;;
+;; CHALLENGE 3 ANSWER
+;;
+;; One of the solutions that's come to mind is to record end-game board-states
+;; instead of move seqs. This would drastically cut down on the space necessary,
+;; as there are far more move combinations than there are board states they
+;; represent.
+;;
+;; F.e., a board with `:x` filling the first column has 6 move combinations
+;; *just for those positions*, not including the count of permutations for the
+;; other 6 open positions on the board.
+;;
+;; What is the function to describe the total number of permutations of moves
+;; that leads to a particular board-state, I wonder...
+;;
+;; In any case, it's clear that just storing the board-state has the possibility
+;; of taking less space, because it has fewer nodes, and less time, for the same
+;; reason.
+
+;; The minimum number of played positions for a won game is 5, 3 positions for
+;; the first player as the winner and 2 for the opponent. If the second player
+;; wins, then the minimum number of positions is 6.
+;;
+;; 8 possible winning triplets: 3 for the columns, 3 for the rows, 2 for the
+;; diagonals.
+;;
+;; If the starting player is the winner, then the opposing player will have 1
+;; fewer played positions. if the second player is the winner, then each player
+;; will have an equal number of played positions. So, given any end-game state,
+;; you can deduce who started by seeing who won and comparing the number of
+;; played positions; if they're equal, the winner played second, otherwise the
+;; winner played first.
+;;
+;; So, any initial win-state has two representations: the first where the winner
+;; has more positions than the loser, and the second where they're equal (but
+;; where the loser does not *also* have a win)
+;;
+;; So, how to generate one of these games?
+
+;; I wanted to start from the initial 8 board positions that make up a winning
+;; end-game. Since I know that the end-game state *has* to have moves in these
+;; places, I figured I'd start there and then work out how to fill in the other
+;; 6 positions. The first two positions for the 5-move end-game are
+;; straightforward, because they both go to the losing player, and cannot
+;; combine into a winning move. Generating the three positions for the 6-move
+;; end-game is somewhat trickier -- for the case where the loser went first --
+;; as you have to ensure that it doesn't create a win condition for the losing
+;; player.
+;;
+;; After thinking through that, I worked on ways to generate those game states,
+;; and then realized that I wasn't "limiting myself to a few hours of effort",
+;; as the README suggests. So here's what's left unimplemented:
+;;
+;; 1. Generating from the initial 5 and 6 move end-game states 7, 8, and 9 move
+;;    end-game states with a winner
+;; 2. Generating the other end-game states that result in a draw.
+;; 3. Tests
+(defn permute-2-opposing-moves
+  [init-win-board]
+  (let [avl-mvs   (->> init-win-board c/available-moves (map #(conj % :o)))
+        mv-combos (combo/combinations avl-mvs 2)]
+    (map #(c/after % init-win-board) mv-combos)))
+
+(defn diff-columns
+  [positions]
+  (->> positions
+       (map first)
+       (set)
+       (count)
+       (not= 1)))
+
+(defn diff-rows
+  [positions]
+  (->> positions
+       (map second)
+       (set)
+       (count)
+       (not= 1)))
+
+(defn safe-mvs-filter
+  [init-board]
+  (cond
+    ;; If the winning player is in a single column, then we
+    ;; can't allow the losing player to have three moves in a
+    ;; single column, as that would make up a win
+    (some (partial every? players) init-board)
+    diff-columns
+
+    ;; Same deal but for rows
+    (->> init-board
+         (apply interleave)
+         (partition 3)
+         (some (partial every? players)))
+    diff-rows
+
+    ;; If the winner is in the diagonals, there's no set moves
+    ;; for the loser that would constitute a win, so return
+    ;; every move
+    :else
+    identity))
+
+(defn permute-3-opposing-moves
+  [init-win-board]
+  (let [avl-mvs   (->> init-win-board c/available-moves (map #(conj % :o)))
+        safe-mvs? (safe-mvs-filter init-win-board)
+        mv-combos (filter safe-mvs?
+                          (combo/combinations avl-mvs 3))]
+    (map #(c/after % init-win-board) mv-combos)))
+
+(defn append-board-state
+  "Given a zipper location, a position to play, and a player to place there,
+  create and append a new child node representing that player playing in that
+  position.
+
+  N.B. this doesn't do any move validation, so it's important that you only pass
+  valid moves."
+  [loc mv player]
+  (z/append-child loc
+                  (node.
+                   (-> loc
+                       content
+                       (update :open disj mv)
+                       (update :played conj (conj mv player)))
+                   [])))
+
+(def base-win-boards
+  "The set of board-states that represent a win, not including the combinations of
+  possible moves from the losing player.
+
+  I've represented the winning player as `:x` because the game states for `:o`
+  winning can be made by simply flipping `:x`s to `:o`s and vice-versa, which saves us space and time."
+  [[[:x :x :x] [:_ :_ :_] [:_ :_ :_]]
+   [[:_ :_ :_] [:x :x :x] [:_ :_ :_]]
+   [[:_ :_ :_] [:_ :_ :_] [:x :x :x]]
+   [[:x :_ :_] [:x :_ :_] [:x :_ :_]]
+   [[:_ :x :_] [:_ :x :_] [:_ :x :_]]
+   [[:_ :_ :x] [:_ :_ :x] [:_ :_ :x]]
+   [[:x :_ :_] [:_ :x :_] [:_ :_ :x]]
+   [[:_ :_ :x] [:_ :x :_] [:x :_ :_]]])
+
+(comment
+
+  ;; N.B Again, I'm storing only half of the possible states because the other
+  ;; half is represented by swapping the `:x`s and `:o`s in every board-state.
+
+  ;; Generating every 5-move end-game with a winner.
+  (doseq [brd-seqs (->> base-win-boards (map permute-2-opposing-moves))
+          brd      brd-seqs]
+    (printf "\n%s\n" (visualize-board brd)))
+
+  ;; An example of generating every 6-move end-game with a winner.
+  (doseq [brd-seqs (->> base-win-boards (map permute-3-opposing-moves))
+          brd      brd-seqs]
+    (printf "\n%s\n" (visualize-board brd))))
 
 ;; CHALLENGE 4: write code to answer some of the following questions:
 ;; 1. What percentage of 100000 random games have no win?
