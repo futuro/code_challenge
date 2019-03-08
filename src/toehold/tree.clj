@@ -77,20 +77,6 @@
                        (update :played conj (conj mv player)))
                    [])))
 
-;; TODO is this necessary anymore?
-;;
-;; I originally wrote this when I was thinking about end-game board-states, but
-;; since moving to a recursive DFS-esque algorithm it's not necessary anymore. I
-;; may still want it for an end-game board-states implementation though...
-(defn permute-moves
-  [open-positions]
-  (reduce (fn [mvs pos]
-            (conj mvs
-                  (conj pos :x)
-                  (conj pos :o)))
-          []
-          open-positions))
-
 (defn loc-depth
   "Return the depth of the tree at the current location. This is directly related
   to the number of moves played."
